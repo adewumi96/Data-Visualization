@@ -1,0 +1,379 @@
+---
+title: "2212220"
+author: "KAFFY"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+### Introduction
+In this project, we aim to explore and analyze the instances of incident cases that occurred in the Dallas Police Department in 2016 and add to the body of knowledge on how bias can be reduce in the police force. We will use the dataset  37-00049_UOF-P_2016 provided to perform descriptive and inferential statistics on the variables of interest. We will also visualize the data using graphs and maps to identify patterns and trends.The analysis will provide insights into the officer gender and subjects gender,highest subject race and officer race ,years of experience of the officers on force and lot more.
+
+
+ 
+#head(data)
+
+### Data processing
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+# Load necessary libraries
+library(vioplot)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggpubr)
+library(corrplot)
+library(tseries)
+library(leaflet)
+library(ggtext)
+library(scales)
+library(viridis)
+library(plotly)
+library(xts)
+
+
+setwd("C:/Users/User/Desktop/304 assignment")
+# Import data
+data <- read.csv("37-00049_UOF-P_2016_prepped.csv")
+# Removing missing values
+data <- na.omit(data)
+data <- data[-1,]
+
+```
+Loading all the necessary libraries that are commonly used for Data analysis and customizing wide range of visualization, manipulating and summarizing data.These libraries greatly help in enhancing the effici visualization tasks. It provides functions that help with with creating and cency and effectiveness of data analysis and visualization
+
+
+```{r}
+str(data)
+dim(data)
+```
+The structure of the data shows that they are in string data type so data processing will be done to convert some o the variables from one data type to another. 
+
+```{r}
+#converting to numeric data type
+data$LOCATION_LONGITUDE <- as.numeric(data$LOCATION_LONGITUDE)
+data$LOCATION_LATITUDE <- as.numeric(data$LOCATION_LATITUDE)
+
+#converting to date format
+data$INCIDENT_DATE <- as.Date(data$INCIDENT_DATE, format = "%m/%d/%y")
+data$OFFICER_HIRE_DATE <- as.Date(data$OFFICER_HIRE_DATE, format = "%m/%d/%y")
+```
+Converting LOCATION_LATITUDE & LOCATION_LONGITUDE from string format to numeric format and INCIDENT_DATE & OFFICER_HIRE_DATE from string format to Date format
+
+```{r}
+data.frame(table(data$OFFICER_GENDER)) %>% arrange(desc(Freq))
+```
+Generating a frequency table that classifies the officers in the dataset by their gender, in order to determine the total count of males and females
+```{r}
+data.frame(table(data$OFFICER_RACE)) %>% arrange(desc(Freq))
+```
+The output of this code is a data frame that presents a frequency distribution of the unique values in the 'OFFICER_RACE' variable, displaying their respective frequency counts.
+
+```{r}
+data.frame(table(data$SUBJECT_GENDER)) %>% arrange(desc(Freq))
+```
+The output of this code is a data frame that presents a frequency distribution of the unique values in the 'SUBJECT_GENDER' variable, displaying their respective frequency counts
+
+```{r}
+data.frame(table(data$OFFICER_GENDER,data$OFFICER_RACE)) %>% arrange(desc(Freq))
+```
+Creating a frequency table that groups the "OFFICER_GENDER" and "OFFICER_RACE" variables in the "data" data frame. The frequency table displays the number of occurrences for each distinct combination of "OFFICER_GENDER" and "OFFICER_RACE" in the dataset.
+```{r}
+data.frame(table(data$SUBJECT_RACE)) %>% arrange(desc(Freq))
+```
+
+The result output a table that lists the unique values of "SUBJECT_RACE" along with their respective frequency counts.
+```{r}
+# Convert variables to the correct data types
+data$OFFICER_YEARS_ON_FORCE <- as.numeric(data$OFFICER_YEARS_ON_FORCE)
+data$OFFICER_RACE <- as.factor(data$OFFICER_RACE)
+
+#Create group of datas:
+p <- data %>% select(OFFICER_GENDER, OFFICER_RACE, OFFICER_YEARS_ON_FORCE)%>% 
+  pivot_wider(names_from = OFFICER_GENDER, values_from = OFFICER_YEARS_ON_FORCE, values_fn = mean) %>%
+  mutate(Male = round(Male), Female = round(Female))
+p
+  
+q <- data %>% select(SUBJECT_GENDER, SUBJECT_RACE)%>% 
+  pivot_wider(names_from = SUBJECT_GENDER, values_from = SUBJECT_GENDER, values_fn = length)
+q
+```
+Converting variables(OFFICER_YEARS_ON_FORCE ,OFFICER_RACE)from one data type to another and creating two dataframe p & q and select only the relevant variables from the original dataframe
+
+# Data exploration 
+
+This report start by investigating geographical distribution of crime incident based on division using longitide and latitude data provided. The plot shows that crimes incident are distributed all around dallas where central dallas incident are more densely packed compared to other divisions such as southeast,southwest and northeast that are more spread out.A definite conclusion cannot be drawn from this data as we do not have information about population and social economy of this area.
+```{r}
+ltn.lat <- as.numeric(data$LOCATION_LATITUDE)
+ltn.long <- as.numeric(data$LOCATION_LONGITUDE)
+# create a scatter plot with color-coded categorical variable
+ggplot(dat = data, aes(x =ltn.lat, y = ltn.long)) +
+  geom_point(aes(colour = factor(data$DIVISION))) +
+  xlab("Latitude") + ylab("Longitude") +
+  scale_color_discrete(name = "DIVISION")
+
+
+```
+
+```{r}
+ ggplot(data, aes(x = "", fill = OFFICER_GENDER)) +
+   geom_bar(width = 2, stat = "count") +
+   coord_polar(theta = "y") +
+   labs(title = "Officer gender representation", fill = "Officer gender") +
+   theme_void() +
+   geom_text(aes(label = paste0(round((after_stat(count))/sum(after_stat(count)) * 100), "%")),
+            stat = "count", position = position_stack(vjust = 0.5))
+```
+Representation of officer gender which shows that male has the largest percentage in the police dataset and the percentage of female is relatively small compare to male. 
+
+```{r}
+# Distribution of Officer Race
+data.frame(table(data$OFFICER_RACE)) %>% arrange(desc(Freq)) %>% 
+   slice_head(n = 10) %>%
+   mutate(word = reorder(Var1, Freq)) %>%
+   ggplot(aes(y = word, x = Freq)) +
+   geom_bar(stat = "identity") +
+   labs(x = 'Officer Race', y = 'Incident Count', title = 'Distribution of Officer Race')
+```
+The barplot  represents the distribution of officer race in the dataset. The plot reveals that White officers have the highest count, followed by Hispanic. American ind has a very low count in the data set which makes it look like there is sentiment in the officer race,but this might be not be a right assumption since we are working with just a year dataset.
+
+The distribution of subject race was also investigated in this report to know the subject race responsible for crimes. According to the pie chart below, the subject race with the highest number of incident victims are black. Specifically, black victims account for 55.9% of the incidents. The remaining incidents are distributed among other racial groups, with Hispanic and white victims having a larger percentage compared to American Indian victims who have the lowest percentage.
+```{r}
+#Representation of subject Race
+m <- data.frame(table(data$SUBJECT_RACE))
+fig <- plot_ly(m, labels = ~Var1, values = ~Freq, type = 'pie')
+fig <- fig %>% layout(title = 'Distribution of Subject Race',
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+During policing , officers are allow to use force but often time this can result to injuries, this report the dives into both officers and their subject injuries.
+
+```{r}
+#officer injured or not
+data %>%
+  select(OFFICER_INJURY) %>%
+  ggplot(aes(x = OFFICER_INJURY )) +
+  geom_bar(position = "dodge") +
+  theme_minimal() +
+  scale_fill_manual(values = "blue") +
+  labs(title = "plot A : Counts of injured and not injured officers ",
+       y = "Number of Incidents")
+```
+
+```{r}
+#subject injured or not
+ data %>%
+   select(SUBJECT_INJURY) %>%
+   ggplot(aes(x = SUBJECT_INJURY )) +
+   geom_bar(position = "dodge") +
+   theme_minimal() +
+   scale_fill_manual(values = "blue") +
+   labs(title = "plot B :Counts of injured and not injured subject ",
+        y = "Number of Incidents")
+```
+Generating a visualization that presents the frequency of both officers(plot A) and subjects(plot B) that were injured versus those who were not injured. plot A output demonstrates that the number of injured officers are noticeably lower than the number of officers that were not injured. As a result, it can be inferred that a greater proportion of officers in the dataset were not injured
+plot B shows that the number of subject injured is not has much as the number of subject that are not injured.Comparing the injured officers with the injured subject,both plots shows that the injured officers and subject injured are both small but  we realized that the subject injured are more than the  officers injured.So this might be because the officer are using forces on subject which makes them more injured.
+
+Furthermore, The Officer injured and subject injured are being investigated based on gender to know which of the officer gender is using more force on subject gender.Plot C and Plot D helps to provide this information.
+
+```{r}
+#count of injured or not injured officer by gender
+data_count <- data %>%
+  group_by(OFFICER_GENDER, OFFICER_INJURY) %>%
+  summarise(count = n())
+
+ggplot(data_count, aes(x =OFFICER_GENDER , y = OFFICER_INJURY, fill = count)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "darkblue") +
+  labs(title = "Plot C :Heatmap for Counting the Number of Values", x = "Gender", y = "Officer Injured?")
+```
+
+```{r}
+#subject injury count by gender
+data_count <- data %>%
+  group_by(SUBJECT_GENDER, SUBJECT_INJURY) %>%
+  summarise(count = n())
+
+ggplot(data_count, aes(x =SUBJECT_GENDER , y = SUBJECT_INJURY, fill = count)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "red") +
+  labs(title = "Plot D :Heatmap for Counting the Number of Values", x = "Gender", y = "Subject Injured?")
+```
+Looking into both plot C & D, we can say that the rate of injury in both is relatively small but of the ones that do get injured, we can see that males get injured the most in both officers and subjects.This suggest that male officers use force on male subject which may be link to why male subject has more injury than male officers as seen in plot A & B. ******The heatmap displays the distribution of injured and non-injured subject categorized by their gender. It reveals that both male and female subject have a lower count of injuries in comparison to the count of subjects who have no injuries.
+
+```{r}
+#count of subject injured by their race
+data_count <- data %>%
+  group_by(SUBJECT_INJURY, SUBJECT_RACE) %>%
+  summarise(count = n())
+
+ggplot(data_count, aes(x =SUBJECT_INJURY , y = SUBJECT_RACE, fill = count)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "blue") +
+  labs(title = "Heatmap for counting subject injuries by subject race", x = "Subject Injured?", y = "Subject Race")
+```
+Lastly on injury story, analysis was done for subject injury by race to know the race that has the higher percentage of injury. So this again shows that most races don't get injured but the distribution of the ones that do get injured correlate with the distribution of the subject race that has the the highest incident as earlier identified in the piechart above. 
+```{r}
+
+#box plot using officers years on force with race
+d<- data.frame(data$OFFICER_RACE,data$OFFICER_YEARS_ON_FORCE)
+# Create box plot using plotly
+plot_ly(d, x =~data$OFFICER_RACE , 
+         y = ~data$OFFICER_YEARS_ON_FORCE, type = 'box') %>% 
+         layout(xaxis = list(title = 'Race'),
+         yaxis = list(title = 'Years on Force'),
+         title = 'Officers Years on Force by Race')
+```
+
+The above plot shows that white stays longer in service year than all other races,According to the provided dataset, only eight officers self-identified as American Indian, and all of them have served for at least 4 years, which results in a higher median compared to the other races in the dataset. However, for the other races, the median years of service are less than 10 years. It is important to note that outliers (more than 20years) are found for the black race, white race and hispanic race, which may be due to factors such as less fieldwork or greater experience in resolving cases without using force.
+
+```{r}
+#box plot using officers years of experience with gender
+d<- data.frame(data$OFFICER_GENDER,data$OFFICER_YEARS_ON_FORCE)
+# Create box plot using plotly
+plot_ly(d, x = ~data$OFFICER_GENDER, 
+         y = ~data$OFFICER_YEARS_ON_FORCE, type = 'box') %>% 
+         layout(xaxis = list(title = 'Gender'),
+         yaxis = list(title = 'Years of Experience'),
+         title = 'Police Years of Experience by Gender')
+
+```
+To get a deeper understanding , Officer years on force base on gender was also investigated.The output shows that  male officers has more experience than females and it also shows that the lower whisker for male starts from zero while females starts from 1. This shows that there is a gender bias which might be because the rate at which they promote females might be lower to that of male or maybe females don't stay long in service which might be the reasons while they have lesser years of experience compare to males.
+
+Next,Time series analysis were performed to get better understanding of when incidents occurs in Dallas
+
+#### Time Series Analysis
+```{r}
+# time series analysis
+data$INCIDENT_DATE <- as.Date(data$INCIDENT_DATE, format = "%m/%d/%Y")
+data$INCIDENT_TIME <- format(strptime(data$INCIDENT_TIME, "%I:%M:%S %p"), "%H:%M:%S")
+data$INCIDENT_MONTH <- months(as.Date(data$INCIDENT_DATE))
+data$INC_MONTH <-format(data$INCIDENT_DATE,"%m")
+data$INCIDENT_DAY <- wday(data$INCIDENT_DATE, label=TRUE)
+
+# data grouping
+ts_df_month <-  data %>%
+  group_by(INC_MONTH) %>%
+  summarize(count = n(), .groups = "keep")
+
+ts_df_year <-  data %>%
+  group_by(INCIDENT_DATE,INCIDENT_MONTH,INCIDENT_DAY) %>%
+  summarize(count = n(), .groups = "keep")
+```
+
+
+```{r}
+r <-data %>% group_by(INCIDENT_DATE) %>% summarise(count = n())
+incidents <- r$count
+incident_Date <- r$INCIDENT_DATE
+
+## Weekly Moving Average smoothing 
+ma10 <- forecast::ma(incidents, 10) 
+years_cases <- xts(data.frame(incidents=incidents,ma10=ma10),incident_Date) 
+autoplot(years_cases,facet=NULL)+
+  geom_line(size=1.1) +
+  scale_color_manual( values = c("darkgrey","darkgreen"))+
+  labs(title = 'Plot E :Time Series all Incidence in 2016', x = 'Incident Date', y = 'Frequency')+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+From the time series plot E above , we can deduce that crime rate in dallas varies throughout the year with a high incident rate during early months and a deep decline in incident shortly after july plus lesser incident rate torward the end of the year. 
+
+However,Plot F below provide more insight about incident per month.The plot(Plot F) shows that march has the highest reported incident rate, Ofwhich, the incident rate has been falling since April and went up again around september and finally falling drastically towards the end of the year where december has the lowest reported incident.
+
+```{r}
+# incident rates in each month of the year
+ggplot(ts_df_month, aes(x=INC_MONTH, y =count, group=1)) + geom_line()  + 
+  geom_line( linewidth = 1,colour ="red") + 
+  labs(x="MONTHS", y= "INCIDENT COUNTS", title="Plot F :Number of Incidents by Month")  + 
+  theme_bw()
+```
+
+Similarly,the frequency distributions of incident rate per weekday was investigated and the barplot(Plot G) below shows that weekend has the highest incidents compared to weekdays with sunday having the highest rate and monday with having the lowest rate.
+
+```{r}
+# plot graph by daysof the week
+# Create a frequency table of the days of the week
+freq_table <- table(weekdays(data$INCIDENT_DATE))
+
+# Order the frequency table based on the order of the days of the week
+freq_table <- freq_table[order(match(names(freq_table), c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")))]
+
+# Convert the frequency table to a data frame
+data_freq <- data.frame(freq = freq_table)
+
+# Create the bar chart with the correct order of the days of the week
+ggplot(data_freq, aes(x = freq.Var1, y = freq.Freq)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  labs(title = "Plot G: Frequency Distribution of Days of the Week", x = "Day of the Week", y = "Frequency")
+```
+
+Density plot was also utilize to show the distribution of crime incidents.The plot shows the overall distribution counts of the crimes has a right skewness in the incident count across the year. Incidents more than 25 per day are less obvious and we see a peak of the distribution at around 2 to 3 incidents reported day.
+
+```{r}
+# density plot for distribution of incident rates.
+ggplot(ts_df_year, aes(count)) +
+  geom_density(alpha = 0.5, colour = "red", fill ="blue")+ 
+  labs(x="Incident counts", y= "Density", title="Density Plot for Distribution of Incident Rates") + 
+  theme_bw()
+```
+
+Additionally, the geographical distribution based on subject race was investigated using an interactive map.The map shows that crimes are distributed across all race in all region of Dallas. It also shows that black are majorly involved in crimes across Dallas but incidences are  mostly concentrated in the central,followed by south of Dallas. Whereas hispanic crime tend to be torwards the eastern part of Dallas. 
+```{r warning=FALSE}
+# create a subset of data with only the necessary columns
+# create a subset of data with only the necessary columns
+map_data <- data %>%
+  select(LOCATION_LATITUDE, LOCATION_LONGITUDE, SUBJECT_RACE)
+
+# create a leaflet map
+leaflet(map_data, options = leafletOptions(minZoom = 4)) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    radius = 3,
+    color = ~ifelse(SUBJECT_RACE == "White", "red",
+                    ifelse(SUBJECT_RACE == "Black", "blue", "green")),
+    stroke = FALSE,
+    fillOpacity = 0.5,
+    popup = ~as.character(SUBJECT_RACE),
+    label = ~as.character(SUBJECT_RACE),
+    group = "Incidents by Race",
+    lat = ~LOCATION_LATITUDE,
+    lng = ~LOCATION_LONGITUDE
+  ) %>%
+  addLayersControl(
+    overlayGroups = "Incidents by Race",
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
+
+Lastly in this report, The top ten reasons for this incidence were analysed and it was identified using a barplot (below), that the major reason for incident is APOWW followed by NO ARREST and the least being ASSAULT and OTHER MISDEMEANOR ARREST. This implies that there might be profiling involved in the police tax force which leads to unwaranted arrest, This may ultimately lead to the reason why subject are recisting which may result to officers utilizing force which may result to injuries to both officers and the subject.
+```{r}
+# Count the number of occurrences of each crime type
+crime_counts <- table(data$SUBJECT_OFFENSE)
+
+# Sort the crime types by their frequency in descending order
+top_crimes <- names(sort(crime_counts, decreasing = TRUE))[1:10]
+
+# Filter the data to include only the top 10 crimes
+top_crime_data <- data[data$SUBJECT_OFFENSE %in% top_crimes,]
+
+# Reorder the Crime_Type variable by frequency in descending order
+top_crime_data$Crime_Type <- reorder(top_crime_data$SUBJECT_OFFENSE, 
+                                     -as.numeric(factor(top_crime_data$SUBJECT_OFFENSE, levels = top_crimes)))
+
+# Create a bar plot of the top 10 crimes
+# Top 10 subject offences
+data.frame(table(data$SUBJECT_OFFENSE)) %>% arrange(desc(Freq)) %>% 
+  slice_head(n = 10) %>%
+  mutate(word = reorder(Var1, Freq)) %>%
+  ggplot(aes(y = word, x = Freq)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = 'Frequency', y = 'Subject Offence', title = 'Top 10 Subject Offences')
+```
+
+Conclusion
+
+It can be concluded that crime incidents are distributed throughout Dallas, with central Dallas having a higher density of incidents. The majority of police officers in the dataset are male and white. Black victims account for the highest percentage of crime incidents, and the number of injured officers and subjects is relatively small. However, male officers and male subjects are more likely to be injured. This suggests that male officers are using more force on male subjects. The heatmap indicates that both male and female subjects have a lower count of injuries compared to those who were not injured. It is important to note that this analysis is based on a one-year dataset and may not reflect the overall trend in the area. Furthermore, the geographical distribution based on subject race was investigated using an interactive map, which showed that crimes are distributed across all races in all regions of Dallas. The map also showed that black people are primarily involved in crimes across Dallas, with incidences concentrated in the central and southern parts of Dallas. Hispanic crime tends to be towards the eastern part of Dallas.  Overall, the analysis of the different plots provides a more comprehensive understanding of the crime incidents in Dallas, including the monthly and weekly trends, the distribution of incidents, and the geographical distribution based on subject race.
